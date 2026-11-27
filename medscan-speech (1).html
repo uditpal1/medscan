@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0f1e">
+<title>MedScan+ — Pitch Speech Teleprompter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #0a2540;
+    --primary-light: #1e3a5f;
+    --accent: #14b8a6;
+    --accent-glow: rgba(20, 184, 166, 0.12);
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --bg: #0a0f1e;
+    --surface: #131a2e;
+    --surface-2: #1a2238;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ---------- TOP TOOLBAR ---------- */
+  .toolbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    background: var(--surface);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 100;
+    transition: transform 0.3s ease;
+    backdrop-filter: blur(12px);
+  }
+
+  .toolbar.hidden { transform: translateY(-100%); }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 15px;
+    color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  .brand-dot {
+    width: 30px; height: 30px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--bg);
+    font-weight: 900;
+    font-size: 13px;
+  }
+
+  .toolbar-spacer { flex: 1; }
+
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg);
+    padding: 5px 9px;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .control-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .btn {
+    background: var(--bg);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    font-size: 15px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .btn:hover { background: var(--primary-light); border-color: var(--accent); color: var(--accent); }
+  .btn:active { transform: scale(0.94); }
+  .btn.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn.primary:hover { background: #0d9488; color: var(--bg); }
+  .btn.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  .speed-slider {
+    width: 90px;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .speed-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px; height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(20, 184, 166, 0.5);
+  }
+
+  .speed-slider::-moz-range-thumb {
+    width: 16px; height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+  }
+
+  .speed-value {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--accent);
+    min-width: 22px;
+    text-align: center;
+  }
+
+  /* ---------- SPEECH CONTAINER ---------- */
+  .speech-container {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: auto;
+    padding: 100px 5vw 180px;
+  }
+
+  .speech-container::-webkit-scrollbar { width: 0; display: none; }
+  .speech-container { scrollbar-width: none; }
+
+  .speech-content {
+    max-width: 880px;
+    margin: 0 auto;
+    font-size: 34px;
+    line-height: 1.65;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.2px;
+    transition: font-size 0.2s ease;
+  }
+
+  .speech-content p { margin-bottom: 24px; }
+
+  .section-divider {
+    text-align: center;
+    margin: 36px 0;
+    color: var(--text-muted);
+    font-size: 18px;
+    letter-spacing: 4px;
+    font-weight: 600;
+    opacity: 0.5;
+  }
+
+  .highlight-stat {
+    display: inline-block;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid var(--warning);
+    color: var(--warning);
+    padding: 1px 10px;
+    border-radius: 6px;
+    font-weight: 800;
+  }
+
+  .highlight-stat.danger {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .highlight-stat.success {
+    background: rgba(20, 184, 166, 0.18);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .module-pill {
+    display: inline-block;
+    background: var(--accent);
+    color: var(--bg);
+    padding: 3px 14px;
+    border-radius: 20px;
+    font-weight: 900;
+    font-size: 0.85em;
+    letter-spacing: 1px;
+    box-shadow: 0 0 16px rgba(20, 184, 166, 0.3);
+  }
+
+  .key-phrase {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .title-line {
+    color: var(--accent);
+    font-weight: 900;
+    font-size: 1.12em;
+    display: inline-block;
+    padding-bottom: 2px;
+    border-bottom: 2px solid var(--accent);
+  }
+
+  .tagline {
+    text-align: center;
+    font-size: 1.25em;
+    font-weight: 800;
+    color: var(--accent);
+    line-height: 1.55;
+    padding: 32px 24px;
+    background: var(--accent-glow);
+    border: 2px solid var(--accent);
+    border-radius: 16px;
+    margin: 36px 0;
+    box-shadow: 0 0 40px rgba(20, 184, 166, 0.15);
+  }
+
+  .thanks {
+    text-align: center;
+    font-size: 1.35em;
+    font-weight: 800;
+    color: var(--text);
+    margin-top: 32px;
+    letter-spacing: 1px;
+  }
+
+  /* ---------- PROGRESS BAR ---------- */
+  .progress-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 4px;
+    background: rgba(255,255,255,0.04);
+    z-index: 90;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #0d9488);
+    width: 0%;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 10px rgba(20, 184, 166, 0.6);
+  }
+
+  /* ---------- READING GUIDE LINE ---------- */
+  .reading-guide {
+    position: fixed;
+    top: 45%;
+    left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(20, 184, 166, 0.4), transparent);
+    z-index: 80;
+    pointer-events: none;
+    display: none;
+  }
+  .reading-guide.active { display: block; }
+
+  /* ---------- START OVERLAY ---------- */
+  .start-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 24px;
+    text-align: center;
+    transition: opacity 0.4s ease;
+  }
+
+  .start-overlay.hidden { opacity: 0; pointer-events: none; }
+
+  .start-logo {
+    width: 80px; height: 80px;
+    background: var(--accent);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    color: var(--bg);
+    font-weight: 900;
+    font-size: 30px;
+    box-shadow: 0 12px 40px rgba(20, 184, 166, 0.4);
+  }
+
+  .start-title {
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .start-sub {
+    color: var(--text-muted);
+    margin-bottom: 28px;
+    font-size: 14px;
+  }
+
+  .start-btn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    padding: 14px 36px;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 8px 24px rgba(20, 184, 166, 0.3);
+  }
+
+  .start-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(20, 184, 166, 0.4); }
+  .start-btn:active { transform: translateY(0); }
+
+  .start-hint {
+    margin-top: 24px;
+    color: var(--text-muted);
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  kbd {
+    background: var(--surface);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-family: 'SF Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid rgba(255,255,255,0.1);
+    font-weight: 600;
+  }
+
+  /* ---------- MOBILE RESPONSIVE ---------- */
+  @media (max-width: 640px) {
+    .speech-content { font-size: 26px; line-height: 1.6; }
+    .speech-container { padding: 90px 4vw 140px; }
+    .toolbar { padding: 8px 10px; gap: 6px; }
+    .brand { font-size: 13px; }
+    .brand-dot { width: 26px; height: 26px; font-size: 11px; }
+    .control-group { padding: 4px 7px; gap: 4px; }
+    .control-label { display: none; }
+    .btn { width: 32px; height: 32px; font-size: 13px; }
+    .speed-slider { width: 60px; }
+    .tagline { font-size: 1.1em; padding: 24px 16px; }
+    .start-title { font-size: 22px; }
+  }
+
+  @media (max-width: 380px) {
+    .speech-content { font-size: 23px; }
+  }
+
+  /* ---------- MIRROR MODE ---------- */
+  body.mirror .speech-container { transform: scaleX(-1); }
+  body.mirror .reading-guide { transform: scaleX(-1); }
+
+  /* Focus ring when paused */
+  .paused-indicator {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--warning);
+    color: var(--bg);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    z-index: 95;
+    display: none;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+  }
+  .paused-indicator.active { display: block; animation: pulse 1.5s ease infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== START OVERLAY ===== -->
+<div class="start-overlay" id="startOverlay">
+  <div class="start-logo">M+</div>
+  <div class="start-title">MedScan+ Pitch Speech</div>
+  <div class="start-sub">Rajasthan Ideathon 2026 — Teleprompter Ready</div>
+  <button class="start-btn" onclick="startSpeech()">Start Speech</button>
+  <div class="start-hint">
+    <kbd>Space</kbd> Play / Pause &nbsp;•&nbsp; <kbd>&uarr;</kbd> <kbd>&darr;</kbd> Speed<br>
+    <kbd>+</kbd> <kbd>&minus;</kbd> Font Size &nbsp;•&nbsp; <kbd>F</kbd> Fullscreen &nbsp;•&nbsp; <kbd>H</kbd> Hide UI
+  </div>
+</div>
+
+<!-- ===== TOOLBAR ===== -->
+<div class="toolbar" id="toolbar">
+  <div class="brand">
+    <div class="brand-dot">M+</div>
+    <span>MedScan+</span>
+  </div>
+
+  <div class="toolbar-spacer"></div>
+
+  <!-- Font size -->
+  <div class="control-group">
+    <span class="control-label">FONT</span>
+    <button class="btn" onclick="changeFontSize(-2)" title="Smaller font">&minus;</button>
+    <button class="btn" onclick="changeFontSize(2)" title="Bigger font">+</button>
+  </div>
+
+  <!-- Speed -->
+  <div class="control-group">
+    <span class="control-label">SPEED</span>
+    <input type="range" class="speed-slider" id="speedSlider" min="1" max="10" value="4" oninput="changeSpeed(this.value)">
+    <span class="speed-value" id="speedValue">4</span>
+  </div>
+
+  <!-- Play/Pause -->
+  <button class="btn primary" id="playBtn" onclick="togglePlay()" title="Play / Pause (Space)">&#9654;</button>
+
+  <!-- Reset -->
+  <button class="btn" onclick="resetSpeech()" title="Restart (R)">&#8635;</button>
+
+  <!-- Reading guide -->
+  <button class="btn" id="guideBtn" onclick="toggleGuide()" title="Reading guide line">&#9776;</button>
+
+  <!-- Mirror -->
+  <button class="btn" id="mirrorBtn" onclick="toggleMirror()" title="Mirror mode (M)">&#8652;</button>
+
+  <!-- Fullscreen -->
+  <button class="btn" onclick="toggleFullscreen()" title="Fullscreen (F)">&#9974;</button>
+
+  <!-- Hide UI -->
+  <button class="btn" onclick="toggleUI()" title="Hide UI (H)">&times;</button>
+</div>
+
+<!-- Paused indicator -->
+<div class="paused-indicator" id="pausedIndicator">PAUSED — Press Space to resume</div>
+
+<!-- Reading guide -->
+<div class="reading-guide" id="readingGuide"></div>
+
+<!-- ===== SPEECH CONTENT ===== -->
+<div class="speech-container" id="speechContainer">
+  <div class="speech-content" id="speechContent">
+    <!-- Content injected by JS -->
+  </div>
+</div>
+
+<!-- ===== PROGRESS BAR ===== -->
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill"></div>
+</div>
+
+<script>
+// ===== SPEECH CONTENT (with highlights) =====
+const speechHTML = `
+<p><span class="title-line">MedScan+ — Pitch Speech</span></p>
+
+<div class="section-divider">◆ ◆ ◆</div>
+
+<p>Namaskar, respected judges aur sabhi present members.</p>
+
+<p>Aaj main aapke saamne ek aise problem ka solution present karna chahta hoon — ek taraf <span class="key-phrase">medicine wastage</span> se related hai, aur doosri taraf <span class="key-phrase">medicines ki affordability aur accessibility</span> se.</p>
+
+<p>Mera idea hai <span class="title-line">MedScan+ — Smart Medicine Safety &amp; Recovery Platform</span>.</p>
+
+<div class="section-divider">PROBLEM</div>
+
+<p>Is idea ke peeche do basic problems hain.</p>
+
+<p>Pehli, hamare gharon mein bahut si medicines treatment complete hone ke baad <span class="key-phrase">unused reh jaati hain</span>, aur unka proper recovery ya disposal nahi hota.</p>
+
+<p>Dusri taraf, aise bahut se patients hain jinhe medicines ki zarurat hoti hai, lekin financial conditions ke karan wo medicines <span class="key-phrase">afford nahi kar paate</span>.</p>
+
+<div class="section-divider">STATISTICS</div>
+
+<p>Ye problem chhoti nahi hai.</p>
+
+<p>LocalCircles survey ke according, Indian households mein purchased medicines ka <span class="highlight-stat">70% tak unused</span> rehne ya discard hone ka figure report kiya gaya hai.</p>
+
+<p>Bhubaneswar disposal study mein <span class="highlight-stat">82% households</span> ne unused medicines ko <span class="key-phrase">dustbin mein dispose</span> karne ki baat report ki.</p>
+
+<p>Aur biomedical waste ki baat karein, toh India mein 2023 ke national figures ke according lagbhag <span class="highlight-stat danger">743 tonnes biomedical waste daily</span> generate hua.</p>
+
+<div class="section-divider">ENVIRONMENTAL IMPACT</div>
+
+<p>Jab medicines aur pharmaceutical waste improperly dispose kiye jaate hain, toh unke chemical compounds <span class="key-phrase">soil aur water sources</span> tak pahunch sakte hain, aquatic ecosystems ko affect kar sakte hain aur antibiotics ke environmental residues <span class="key-phrase">antimicrobial resistance</span> ke spread se judi concerns ko badha sakte hain.</p>
+
+<p>Ab yahan ek doosri situation bhi hai. Ek household mein medicine unused padi hai, jabki kisi doosre patient ko wahi medicine afford karne mein difficulty ho rahi hai. <span class="key-phrase">Hum isi gap ko address karna chahte hain.</span></p>
+
+<div class="section-divider">SOLUTION</div>
+
+<p>MedScan+ ka main concept hai — unused medicines ko recover karna, unka safe disposal ensure karna aur eligible medicines ko proper verification ke baad zaruratmand patients tak <span class="key-phrase">free mein pahunchane</span> ke liye ek system develop karna.</p>
+
+<p>Iske liye hamara primary module hai <span class="module-pill">RECOVER</span></p>
+
+<p>Users apni unused medicines <span class="key-phrase">participating collection centres</span> par submit kar sakenge. Wahan pharmacist ya authorized staff medicines ki packaging, seal, expiry, storage conditions aur reuse eligibility check karega.</p>
+
+<p>Har recovered medicine distribute nahi ki jaayegi. Sirf applicable safety criteria aur proper verification ke according <span class="key-phrase">eligible medicines</span> ko further distribution process mein consider kiya jayega. Baaki medicines, especially expired ya unsuitable stock, <span class="key-phrase">authorized disposal process</span> ke through handle hongi.</p>
+
+<div class="section-divider">DISTRIBUTION</div>
+
+<p>Hamare concept ka sabse important part hai ki verified aur eligible recovered medicines ko participating healthcare facilities aur authorized distribution network ke through un patients tak <span class="highlight-stat success">free mein pahunchane</span> ka system develop kiya jaaye jinhe medicines ki zarurat hai aur jo unhe afford nahi kar paate.</p>
+
+<p>Is process mein <span class="key-phrase">proper verification, pharmacist oversight aur record keeping</span> essential hogi.</p>
+
+<div class="section-divider">SUPPORTING MODULES</div>
+
+<p>Iske alawa MedScan+ mein supporting modules bhi honge:</p>
+
+<p><span class="module-pill">FIND</span> &nbsp;— patients ko free ya affordable medicine sources identify karne mein help karega.</p>
+
+<p><span class="module-pill">VERIFY</span> &nbsp;— prescription aur medicine ke possible mismatch ko identify karne mein assistance karega.</p>
+
+<p><span class="module-pill">MANAGE</span> &nbsp;— medicines ke reminders, schedules aur expiry tracking provide karega.</p>
+
+<div class="section-divider">IMPLEMENTATION</div>
+
+<p>Implementation hum initially ek block ke <span class="key-phrase">2–3 PHCs aur participating collection centres</span> ke pilot se propose karte hain. Pilot ke results aur required approvals ke baad is system ko <span class="key-phrase">district aur future mein larger healthcare network</span> tak expand kiya ja sakta hai.</p>
+
+<div class="section-divider">VISION</div>
+
+<p>MedScan+ ka objective sirf medicines ko waste hone se bachana nahi hai, balki un medicines ko responsible aur safe process ke through ek <span class="key-phrase">useful resource</span> mein convert karna hai, jisse medicine wastage reduce ho, improper disposal kam ho aur affordable treatment access mein help mile.</p>
+
+<p>Hum chahte hain ki jo medicine ek ghar mein unused rehkar waste ho sakti hai, wahi proper verification ke baad <span class="key-phrase">kisi doosre ke treatment mein help kar sake.</span></p>
+
+<div class="tagline">
+  MedScan+ —<br>
+  Recover responsibly.<br>
+  Dispose safely.<br>
+  Deliver hope through accessible medicines.
+</div>
+
+<p class="thanks">Thank you.</p>
+`;
+
+// Inject speech
+document.getElementById('speechContent').innerHTML = speechHTML;
+
+// ===== STATE =====
+let isPlaying = false;
+let scrollSpeed = 4;
+let fontSize = 34;
+let scrollInterval = null;
+let isMirrored = false;
+let guideActive = false;
+
+const container = document.getElementById('speechContainer');
+const playBtn = document.getElementById('playBtn');
+const speedSlider = document.getElementById('speedSlider');
+const speedValue = document.getElementById('speedValue');
+const progressFill = document.getElementById('progressFill');
+const toolbar = document.getElementById('toolbar');
+const pausedIndicator = document.getElementById('pausedIndicator');
+const readingGuide = document.getElementById('readingGuide');
+const guideBtn = document.getElementById('guideBtn');
+
+// ===== START SPEECH =====
+function startSpeech() {
+  document.getElementById('startOverlay').classList.add('hidden');
+  setTimeout(() => {
+    container.scrollTop = 0;
+    updateProgress();
+  }, 400);
+}
+
+// ===== PLAY / PAUSE =====
+function togglePlay() {
+  isPlaying = !isPlaying;
+  if (isPlaying) {
+    playBtn.innerHTML = '&#10074;&#10074;';
+    pausedIndicator.classList.remove('active');
+    startScrolling();
+  } else {
+    playBtn.innerHTML = '&#9654;';
+    pausedIndicator.classList.add('active');
+    stopScrolling();
+  }
+}
+
+// ===== AUTO SCROLL =====
+function startScrolling() {
+  if (scrollInterval) clearInterval(scrollInterval);
+  // Higher speed = faster scroll. interval from 55ms (speed 1) to 8ms (speed 10)
+  const interval = Math.max(8, 55 - (scrollSpeed * 5));
+  const step = Math.max(1, Math.floor(scrollSpeed / 2.5));
+
+  scrollInterval = setInterval(() => {
+    container.scrollTop += step;
+    updateProgress();
+
+    // Stop at bottom
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 4) {
+      stopScrolling();
+      isPlaying = false;
+      playBtn.innerHTML = '&#10003;';
+      pausedIndicator.classList.remove('active');
+    }
+  }, interval);
+}
+
+function stopScrolling() {
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
+}
+
+// ===== SPEED =====
+function changeSpeed(val) {
+  scrollSpeed = parseInt(val);
+  speedValue.textContent = scrollSpeed;
+  if (isPlaying) {
+    stopScrolling();
+    startScrolling();
+  }
+}
+
+// ===== FONT SIZE =====
+function changeFontSize(delta) {
+  fontSize = Math.max(20, Math.min(60, fontSize + delta));
+  document.getElementById('speechContent').style.fontSize = fontSize + 'px';
+  updateProgress();
+}
+
+// ===== PROGRESS =====
+function updateProgress() {
+  const max = container.scrollHeight - container.clientHeight;
+  const pct = max > 0 ? (container.scrollTop / max) * 100 : 0;
+  progressFill.style.width = pct + '%';
+}
+
+// ===== RESET =====
+function resetSpeech() {
+  stopScrolling();
+  isPlaying = false;
+  playBtn.innerHTML = '&#9654;';
+  pausedIndicator.classList.remove('active');
+  container.scrollTop = 0;
+  updateProgress();
+  showToast('Speech reset to beginning');
+}
+
+// ===== MIRROR =====
+function toggleMirror() {
+  isMirrored = !isMirrored;
+  document.body.classList.toggle('mirror', isMirrored);
+  document.getElementById('mirrorBtn').classList.toggle('active', isMirrored);
+  showToast(isMirrored ? 'Mirror mode ON' : 'Mirror mode OFF');
+}
+
+// ===== READING GUIDE =====
+function toggleGuide() {
+  guideActive = !guideActive;
+  readingGuide.classList.toggle('active', guideActive);
+  guideBtn.classList.toggle('active', guideActive);
+}
+
+// ===== FULLSCREEN =====
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// ===== HIDE UI =====
+let uiHidden = false;
+function toggleUI() {
+  uiHidden = !uiHidden;
+  toolbar.classList.toggle('hidden', uiHidden);
+  pausedIndicator.style.top = uiHidden ? '20px' : '70px';
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  let toast = document.getElementById('toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'toast';
+    toast.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--surface);color:var(--accent);padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:200;border:1px solid var(--accent);transition:opacity 0.3s;opacity:0;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+}
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', (e) => {
+  const overlay = document.getElementById('startOverlay');
+  if (overlay && !overlay.classList.contains('hidden')) {
+    if (e.code === 'Space' || e.code === 'Enter') {
+      e.preventDefault();
+      startSpeech();
+    }
+    return;
+  }
+
+  switch(e.code) {
+    case 'Space':
+      e.preventDefault();
+      togglePlay();
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      speedSlider.value = Math.min(10, parseInt(speedSlider.value) + 1);
+      changeSpeed(speedSlider.value);
+      break;
+    case 'ArrowDown':
+      e.preventDefault();
+      speedSlider.value = Math.max(1, parseInt(speedSlider.value) - 1);
+      changeSpeed(speedSlider.value);
+      break;
+    case 'Equal':
+    case 'NumpadAdd':
+      e.preventDefault();
+      changeFontSize(2);
+      break;
+    case 'Minus':
+    case 'NumpadSubtract':
+      e.preventDefault();
+      changeFontSize(-2);
+      break;
+    case 'KeyH':
+      toggleUI();
+      break;
+    case 'KeyF':
+      toggleFullscreen();
+      break;
+    case 'KeyR':
+      resetSpeech();
+      break;
+    case 'KeyM':
+      toggleMirror();
+      break;
+    case 'KeyG':
+      toggleGuide();
+      break;
+  }
+});
+
+// Manual scroll updates progress
+container.addEventListener('scroll', updateProgress);
+container.addEventListener('wheel', () => {
+  if (isPlaying) {
+    // User took manual control — pause auto scroll
+    // (Optional behavior; currently keeps playing)
+  }
+});
+
+// Initial progress
+updateProgress();
+
+// Touch anywhere on speech area to play/pause (mobile friendly)
+container.addEventListener('click', (e) => {
+  // Only toggle if clicking directly on speech text, not a button
+  if (e.target.closest('.btn')) return;
+  togglePlay();
+});
+</script>
+
+</body>
+</html>
